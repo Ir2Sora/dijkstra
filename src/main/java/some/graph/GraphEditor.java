@@ -3,25 +3,30 @@ package some.graph;
 import com.mxgraph.layout.mxCircleLayout;
 import com.mxgraph.model.mxGraphModel;
 import com.mxgraph.swing.mxGraphComponent;
-import com.mxgraph.util.mxConstants;
-import com.mxgraph.util.mxStyleUtils;
+import com.mxgraph.util.*;
+import org.apache.commons.lang3.StringUtils;
 import org.jgrapht.ListenableGraph;
 import org.jgrapht.ext.JGraphXAdapter;
-import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.ListenableUndirectedGraph;
 
 import javax.swing.*;
 import java.awt.*;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Random;
+import java.util.stream.IntStream;
 
 public class GraphEditor extends JApplet {
 
     private static final Dimension DEFAULT_SIZE = new Dimension(900, 900);
 
-    private ListenableGraph<String, DefaultEdge> graph;
-    private JGraphXAdapter<String, DefaultEdge> jgxAdapter;
+    private ListenableGraph<Integer, WeightedEdge> graph;
+    private JGraphXAdapter<Integer, WeightedEdge> jgxAdapter;
+
+    public GraphEditor() {
+        graph = new ListenableUndirectedGraph<>(WeightedEdge.class);
+        jgxAdapter = new JGraphXAdapter<>(graph);
+    }
 
     public static void main(String [] args) {
         GraphEditor applet = new GraphEditor();
@@ -37,28 +42,26 @@ public class GraphEditor extends JApplet {
     }
 
     public void init() {
-        graph = new ListenableUndirectedGraph<>(DefaultEdge.class);
-        jgxAdapter = new JGraphXAdapter<>(graph);
-
-        String v1 = "v1";
-        String v2 = "v2";
-        String v3 = "v3";
-        String v4 = "v4";
-        
-        graph.addVertex(v1);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-
-        graph.addEdge(v1, v2);
-        graph.addEdge(v2, v3);
-        graph.addEdge(v3, v1);
-        graph.addEdge(v4, v3);
-
         Box bh = Box.createHorizontalBox();
         bh.add(generateNavigationPanel());
-        bh.add(new mxGraphComponent(jgxAdapter));
 
+        jgxAdapter.setAllowDanglingEdges(false);
+
+        mxEventSource.mxIEventListener listener = new GraphEventListener(this::redraw);
+        jgxAdapter.addListener(mxEvent.START_EDITING, listener);
+        jgxAdapter.addListener(mxEvent.LABEL_CHANGED, listener);
+
+
+        jgxAdapter.addListener(mxEvent.CELL_CONNECTED, new mxEventSource.mxIEventListener() {
+            @Override
+            public void invoke(Object o, mxEventObject mxEventObject) {
+                redraw();
+            }
+        });
+
+        mxGraphComponent mxGraph = new mxGraphComponent(jgxAdapter);
+
+        bh.add(mxGraph);
         getContentPane().add(bh);
 
         redraw();
@@ -67,15 +70,24 @@ public class GraphEditor extends JApplet {
     private JPanel generateNavigationPanel() {
         JPanel p = new JPanel();
 
-        JButton addButton = new JButton("Добавить");
-        p.add(addButton);
+        p.setPreferredSize(new Dimension(200, 900));
 
-        JTextField numberVertex = new JFormattedTextField(NumberFormat.getInstance());
-        numberVertex.setColumns(10);
-        p.add(numberVertex);
+        JButton bAdd = new JButton("Добавить");
+        p.add(bAdd);
 
-        addButton.addActionListener(e -> {
-            graph.addVertex(new Random().nextInt() + "");
+        JTextField tNumberVertex = new JFormattedTextField(NumberFormat.getInstance());
+        tNumberVertex.setColumns(10);
+        p.add(tNumberVertex);
+
+        bAdd.addActionListener(e -> {
+            graph.removeAllEdges(new ArrayList<>(graph.edgeSet()));
+            graph.removeAllVertices(new ArrayList<>(graph.vertexSet()));
+
+            if (!StringUtils.isEmpty(tNumberVertex.getText())) {
+                int numberVertex = Integer.parseInt(tNumberVertex.getText());
+                IntStream.rangeClosed(1, numberVertex)
+                        .forEach(i -> graph.addVertex(i));
+            }
 
             redraw();
         });

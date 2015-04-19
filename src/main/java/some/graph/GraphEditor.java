@@ -1,10 +1,10 @@
 package some.graph;
 
 import com.mxgraph.layout.mxCircleLayout;
-import com.mxgraph.model.mxGraphModel;
 import com.mxgraph.swing.mxGraphComponent;
-import com.mxgraph.util.*;
-import org.apache.commons.lang3.StringUtils;
+import com.mxgraph.util.mxConstants;
+import com.mxgraph.util.mxEvent;
+import com.mxgraph.util.mxEventSource;
 import org.jgrapht.ListenableGraph;
 import org.jgrapht.ext.JGraphXAdapter;
 import org.jgrapht.graph.ListenableUndirectedGraph;
@@ -13,7 +13,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.stream.IntStream;
 
 public class GraphEditor extends JApplet {
@@ -46,20 +45,19 @@ public class GraphEditor extends JApplet {
         bh.add(generateNavigationPanel());
 
         jgxAdapter.setAllowDanglingEdges(false);
+        jgxAdapter.getStylesheet().getDefaultEdgeStyle()
+                .put(mxConstants.STYLE_ENDARROW, mxConstants.NONE);
 
-        mxEventSource.mxIEventListener listener = new GraphEventListener(this::redraw);
-        jgxAdapter.addListener(mxEvent.START_EDITING, listener);
-        jgxAdapter.addListener(mxEvent.LABEL_CHANGED, listener);
-
-
-        jgxAdapter.addListener(mxEvent.CELL_CONNECTED, new mxEventSource.mxIEventListener() {
-            @Override
-            public void invoke(Object o, mxEventObject mxEventObject) {
-                redraw();
-            }
+        jgxAdapter.addListener(mxEvent.CELL_CONNECTED, (o, mxEventObject) -> {
+            //TODO
         });
 
         mxGraphComponent mxGraph = new mxGraphComponent(jgxAdapter);
+        mxEventSource.mxIEventListener listener = new GraphEventListener();
+        mxGraph.addListener(mxEvent.START_EDITING, listener);
+        mxGraph.addListener(mxEvent.LABEL_CHANGED, listener);
+
+
 
         bh.add(mxGraph);
         getContentPane().add(bh);
@@ -72,7 +70,7 @@ public class GraphEditor extends JApplet {
 
         p.setPreferredSize(new Dimension(200, 900));
 
-        JButton bAdd = new JButton("Добавить");
+        JButton bAdd = new JButton("Сгенерировать");
         p.add(bAdd);
 
         JTextField tNumberVertex = new JFormattedTextField(NumberFormat.getInstance());
@@ -83,10 +81,10 @@ public class GraphEditor extends JApplet {
             graph.removeAllEdges(new ArrayList<>(graph.edgeSet()));
             graph.removeAllVertices(new ArrayList<>(graph.vertexSet()));
 
-            if (!StringUtils.isEmpty(tNumberVertex.getText())) {
+            if (!tNumberVertex.getText().isEmpty()) {
                 int numberVertex = Integer.parseInt(tNumberVertex.getText());
                 IntStream.rangeClosed(1, numberVertex)
-                        .forEach(i -> graph.addVertex(i));
+                        .forEach(graph::addVertex);
             }
 
             redraw();
@@ -96,13 +94,6 @@ public class GraphEditor extends JApplet {
     }
 
     private void redraw() {
-        mxGraphComponent graphComponent = new mxGraphComponent(jgxAdapter);
-        mxGraphModel graphModel  = (mxGraphModel) graphComponent.getGraph().getModel();
-
-        Collection<Object> cells =  graphModel.getCells().values();
-        mxStyleUtils.setCellStyles(graphComponent.getGraph().getModel(),
-                cells.toArray(), mxConstants.STYLE_ENDARROW, mxConstants.NONE);
-
         mxCircleLayout layout = new mxCircleLayout(jgxAdapter);
         layout.execute(jgxAdapter.getDefaultParent());
     }

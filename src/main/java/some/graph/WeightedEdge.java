@@ -1,6 +1,8 @@
 package some.graph;
 
-public class WeightedEdge {
+import java.io.Serializable;
+
+public class WeightedEdge implements Serializable {
 
     private double weight;
 
